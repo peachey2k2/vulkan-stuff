@@ -15,7 +15,7 @@ OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SOURCES))
 DEPS := $(patsubst $(SRCDIR)/%.cpp,$(DEPDIR)/%.d,$(SOURCES))
 
 # Name of the executable
-NAME = VoxelGame
+NAME = WMTest
 
 # Default target
 all: $(NAME)
