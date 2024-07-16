@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "set": "cpp"
+        "set": "cpp",
+        "algorithm": "cpp",
+        "limits": "cpp"
     }
 }

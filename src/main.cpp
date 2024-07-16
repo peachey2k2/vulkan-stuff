@@ -1,17 +1,14 @@
-#include <iostream>
-#include <stdexcept>
-#include <cstdlib>
-#include <vector>
-#include <cstring>
-#include <optional>
-#include <set>
-#include <limits>
-#include <algorithm>
-#include <fstream>
-#include <array>
-#include <chrono>
+#include "core.hpp"
+
 
 int main(int argc, char** argv){
-    std::cout << "Hello World!" << '\n';
+    wmac::Engine engine;
+    try {
+        engine.run();
+    } catch (const wmac::engine_fatal_exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+
     return 0;
 }
