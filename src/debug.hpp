@@ -20,13 +20,15 @@
 
 namespace wmac {
     class engine_exception : public std::runtime_error {
+    const char* const prefix = "\e[36m[ERROR] ";
     public:
-        engine_exception(const std::string& message) : std::runtime_error(message) {}
+        engine_exception(const std::string& p_message) : std::runtime_error(prefix + p_message) {}
     };
 
     class engine_fatal_exception : public engine_exception {
+    const char* const prefix = "\e[36m[FATAL ERROR] ";
     public:
-        engine_fatal_exception(const std::string& message) : engine_exception(message) {}
+        engine_fatal_exception(const std::string& p_message) : engine_exception(p_message) {}
     };
 }
 
