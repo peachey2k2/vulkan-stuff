@@ -1,6 +1,7 @@
 # Compiler and flags
 CXX = g++
-CXXFLAGS = -std=c++17 -O2
+CXXFLAGS = -std=c++20 -O2
+WARNINGS = -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 DEPFLAGS = -MMD -MP
 
@@ -10,12 +11,11 @@ INCLUDES = $(addprefix -I,$(INCLUDE_DIRS))
 # Directories
 SRCDIR = ./src
 OBJDIR = ./obj
-DEPDIR = $(OBJDIR)/dep
 
 # Automatically find source files and generate corresponding object and dependency file names
 SOURCES := $(shell find $(SRCDIR) -type f -name '*.cpp')
 OBJECTS := $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SOURCES))
-DEPS := $(patsubst $(SRCDIR)/%.cpp,$(DEPDIR)/%.d,$(SOURCES))
+DEPS := $(OBJECTS:.o=.d)
 
 # Name of the executable
 NAME = WMTest
@@ -28,13 +28,9 @@ $(NAME): $(OBJECTS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 # Compile source files into object files
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(DEPDIR)
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(DEPFLAGS) -c $< -o $@
-
-# Create dependency files
-$(DEPDIR):
-	mkdir -p $@
+	$(CXX) $(CXXFLAGS) $(WARNINGS) $(INCLUDES) $(DEPFLAGS) -c $< -o $@
 
 # Include dependency files
 -include $(DEPS)

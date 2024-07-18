@@ -47,6 +47,15 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct Buffer {
+    VkBuffer opaque;
+    VkDeviceMemory memory;
+    VkBuffer stagingOpaque;
+    VkDeviceMemory stagingMemory;
+    VkDeviceSize size;
+    void* mapped;
+};
+
 struct Vertex {
     glm::vec3 pos;
     glm::vec3 color;
@@ -107,12 +116,14 @@ const std::vector<Vertex> vertices = {
     {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
 };
 
-const std::vector<uint16_t> indices = {
+const std::vector<u32> indices = {
     0, 1, 2, 2, 3, 0,
     4, 5, 6, 6, 7, 4
 };
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
+const int MAX_VERTICES = 10000;
+const int MAX_INDICES = 10000;
 
 class Engine {
     public:
@@ -158,18 +169,29 @@ class Engine {
         std::vector<VkSemaphore> renderFinishedSemaphores;
         std::vector<VkFence> inFlightFences;
 
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexBufferMemory;
+        // VkBuffer vertexBuffer;
+        // VkDeviceMemory vertexBufferMemory;
 
-        VkBuffer indexBuffer;
-        VkDeviceMemory indexBufferMemory;
+        // VkBuffer indexBuffer;
+        // VkDeviceMemory indexBufferMemory;
+        Buffer vertexBuffer;
+        Buffer indexBuffer;
 
         std::vector<VkBuffer> uniformBuffers;
         std::vector<VkDeviceMemory> uniformBuffersMemory;
         std::vector<void*> uniformBuffersMapped;
 
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
+        // VkBuffer vertexStagingBuffer;
+        // VkDeviceMemory vertexStagingBufferMemory;
+        // void* vertexStagingBufferData;
+
+        // VkBuffer indexStagingBuffer;
+        // VkDeviceMemory indexStagingBufferMemory;
+        // void* indexStagingBufferData;
+
+        VkBuffer imageStagingBuffer;
+        VkDeviceMemory imageStagingBufferMemory;
+
         VkImage textureImage;
         VkDeviceMemory textureImageMemory;
 
@@ -272,7 +294,9 @@ class Engine {
 
         // src/init/buffers.cpp
         void createVertexBuffer();
+            void updateVertexBuffer(const std::vector<Vertex>& p_newVertices);
         void createIndexBuffer();
+            void updateIndexBuffer(const std::vector<u32>& p_newIndices);
         void createUniformBuffers();
             void createBuffer(VkDeviceSize p_size, VkBufferUsageFlags p_usage, VkMemoryPropertyFlags p_properties, VkBuffer& p_buffer, VkDeviceMemory& p_bufferMemory);
             void copyBuffer(VkBuffer p_srcBuffer, VkBuffer p_dstBuffer, VkDeviceSize p_size);

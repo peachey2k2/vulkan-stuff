@@ -16,7 +16,6 @@ void Engine::createInstance() {
         .apiVersion = VK_API_VERSION_1_0,
     };
 
-    u32 extensionCount = 0;
     auto extensions = getRequiredExtensions();
 
     VkInstanceCreateInfo createInfo {
