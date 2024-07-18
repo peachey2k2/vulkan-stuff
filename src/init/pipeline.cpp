@@ -55,7 +55,7 @@ void Engine::createRenderPass() {
 
     VkRenderPassCreateInfo renderPassInfo {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = static_cast<uint32_t>(attachments.size()),
+        .attachmentCount = scast<u32>(attachments.size()),
         .pAttachments = attachments.data(),
         .subpassCount = 1,
         .pSubpasses = &subpass,
@@ -63,9 +63,8 @@ void Engine::createRenderPass() {
         .pDependencies = &dependency,
     };
 
-    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create render pass!");
-    }
+    VkResult result = vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create render pass!");
 }
 
 VkFormat Engine::findDepthFormat() {
@@ -87,7 +86,7 @@ VkFormat Engine::findSupportedFormat(const std::vector<VkFormat>& p_candidates, 
             return format;
         }
     }
-    throw std::runtime_error("failed to find supported format!");
+    throw engine_fatal_exception("failed to find supported format!");
 }
 
 void Engine::createDescriptorSetLayout() {
@@ -111,18 +110,17 @@ void Engine::createDescriptorSetLayout() {
 
     VkDescriptorSetLayoutCreateInfo layoutInfo {
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = static_cast<uint32_t>(bindings.size()),
+        .bindingCount = scast<u32>(bindings.size()),
         .pBindings = bindings.data(),
     };
 
-    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor set layout!");
-    }
+    VkResult result = vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create descriptor set layout!");
 }
 
 void Engine::createGraphicsPipeline() {
-    auto vertShaderCode = readFile("shaders/vert.spv");
-    auto fragShaderCode = readFile("shaders/frag.spv");
+    auto vertShaderCode = readFile("src/shaders/vert.spv");
+    auto fragShaderCode = readFile("src/shaders/frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -150,7 +148,7 @@ void Engine::createGraphicsPipeline() {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .vertexBindingDescriptionCount = 1,
         .pVertexBindingDescriptions = &bindingDescription,
-        .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
+        .vertexAttributeDescriptionCount = scast<u32>(attributeDescriptions.size()),
         .pVertexAttributeDescriptions = attributeDescriptions.data(),
     };
 
@@ -161,7 +159,7 @@ void Engine::createGraphicsPipeline() {
 
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.dynamicStateCount = scast<u32>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly {
@@ -268,9 +266,8 @@ void Engine::createGraphicsPipeline() {
         .pushConstantRangeCount = 0,
     };
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
-    }
+    VkResult result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create pipeline layout!");
 
     VkGraphicsPipelineCreateInfo pipelineInfo {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -291,9 +288,8 @@ void Engine::createGraphicsPipeline() {
         .basePipelineIndex = -1,
     };
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create graphics pipeline!");
-    }
+    result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create graphics pipeline!");
 
     // destroy shader modules. no longer needed after pipeline creation.
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
@@ -304,22 +300,19 @@ VkShaderModule Engine::createShaderModule(const std::vector<char>& p_code) {
     VkShaderModuleCreateInfo createInfo {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = p_code.size(),
-        .pCode = reinterpret_cast<const uint32_t*>(p_code.data()),
+        .pCode = reinterpret_cast<const u32*>(p_code.data()),
     };
 
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
-    }
+    VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create shader module!");
     return shaderModule;
 }
 
-static std::vector<char> readFile(const std::string& p_filename) {
+std::vector<char> Engine::readFile(const std::string& p_filename) {
     std::ifstream file(p_filename, std::ios::ate | std::ios::binary);
 
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file!");
-    }
+    ASSERT_FATAL(file.is_open(), "failed to open file!");
     std::size_t fileSize = (std::size_t) file.tellg();
     std::vector<char> buffer(fileSize);
 
@@ -338,7 +331,6 @@ void Engine::createCommandPool() {
         .queueFamilyIndex = queueFamilyIndices.graphicsFamily.value(),
     };
 
-    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create command pool!");
-    }
+    VkResult result = vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create command pool!");
 }

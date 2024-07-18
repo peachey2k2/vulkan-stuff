@@ -6,7 +6,7 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [
-                "offsetof(__a, __b)=1"
+                "offsetof(___a, ___b)=1"
             ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",

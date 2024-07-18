@@ -112,6 +112,8 @@ const std::vector<uint16_t> indices = {
     4, 5, 6, 6, 7, 4
 };
 
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
 class Engine {
     public:
         bool framebufferResized = false;
@@ -139,14 +141,46 @@ class Engine {
         VkFormat swapChainImageFormat;
         VkExtent2D swapChainExtent;
         std::vector<VkImageView> swapChainImageViews;
+        std::vector<VkFramebuffer> swapChainFramebuffers;
 
         VkRenderPass renderPass;
         VkDescriptorSetLayout descriptorSetLayout;
         VkPipelineLayout pipelineLayout;
         VkPipeline graphicsPipeline;
 
+        VkDescriptorPool descriptorPool;
+        std::vector<VkDescriptorSet> descriptorSets;
+
         VkCommandPool commandPool;
         std::vector<VkCommandBuffer> commandBuffers;
+
+        std::vector<VkSemaphore> imageAvailableSemaphores;
+        std::vector<VkSemaphore> renderFinishedSemaphores;
+        std::vector<VkFence> inFlightFences;
+
+        VkBuffer vertexBuffer;
+        VkDeviceMemory vertexBufferMemory;
+
+        VkBuffer indexBuffer;
+        VkDeviceMemory indexBufferMemory;
+
+        std::vector<VkBuffer> uniformBuffers;
+        std::vector<VkDeviceMemory> uniformBuffersMemory;
+        std::vector<void*> uniformBuffersMapped;
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        VkImage textureImage;
+        VkDeviceMemory textureImageMemory;
+
+        VkImageView textureImageView;
+        VkSampler textureSampler;
+
+        VkImage depthImage;
+        VkDeviceMemory depthImageMemory;
+        VkImageView depthImageView;
+
+        u32 currentFrame = 0;
 
     public:
         void run();
@@ -156,47 +190,104 @@ class Engine {
 
 
     private:
+        // indents are used to show hierarchy
         void initialize();
         void mainLoop();
+            void drawFrame();
+            void recordCommandBuffer(VkCommandBuffer p_commandBuffer, uint32_t p_imageIndex);
+            void updateUniformBuffer(uint32_t p_currentImage);
+
         void cleanup();
+            void cleanupVulkan();
+            void cleanupSwapChain();
 
-        // vulkan stuff, indents are used to show the hierarchy
-        // not all functions are here, just the ones that need access to private members
+        VkResult CreateDebugUtilsMessengerEXT(
+            VkInstance p_instance,
+            const VkDebugUtilsMessengerCreateInfoEXT* p_createInfo,
+            const VkAllocationCallbacks* p_allocator,
+            VkDebugUtilsMessengerEXT* p_debugMessenger
+        );
+        void DestroyDebugUtilsMessengerEXT(
+            VkInstance p_instance,
+            VkDebugUtilsMessengerEXT p_debugMessenger,
+            const VkAllocationCallbacks* p_allocator
+        );
+        static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+            VkDebugUtilsMessageSeverityFlagBitsEXT p_messageSeverity,
+            VkDebugUtilsMessageTypeFlagsEXT p_messageType,
+            const VkDebugUtilsMessengerCallbackDataEXT* p_pCallbackData,
+            void* p_pUserData
+        );
 
-        // defined in src/init/instance.cpp
+        // vulkan stuff below
+
+        // src/init/instance.cpp
         void createInstance();
             bool checkValidationLayerSupport();
+            std::vector<const char*> getRequiredExtensions();
         void setupDebugMessenger();
+            void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& p_createInfo);
         void createSurface();
 
-        // defined in src/init/device.cpp
+        // src/init/device.cpp
         void pickPhysicalDevice();
             QueueFamilyIndices findQueueFamilies(VkPhysicalDevice p_device);
             u32 rateDeviceSuitability(VkPhysicalDevice p_device);
             bool checkDeviceExtensionSupport(VkPhysicalDevice p_device);
             SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice p_device);
         void createLogicalDevice();
+            u32 findMemoryType(u32 p_typeFilter, VkMemoryPropertyFlags p_properties);
 
-        // defined in src/init/swap_chain.cpp
+        // src/init/swap_chain.cpp
         void createSwapChain();
             VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& p_formats);
             VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& p_modes);
             VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& p_capabilities);
             void recreateSwapChain();
         
-        // defined in src/init/image.cpp
+        // src/init/image.cpp
         void createImageViews();
             VkImageView createImageView(VkImage p_image, VkFormat p_format, VkImageAspectFlags p_aspectFlags);
         
-        // defined in src/init/pipeline.cpp
+        // src/init/pipeline.cpp
         void createRenderPass();
             VkFormat findDepthFormat();
             VkFormat findSupportedFormat(const std::vector<VkFormat>& p_candidates, VkImageTiling p_tiling, VkFormatFeatureFlags p_features);
         void createDescriptorSetLayout();
         void createGraphicsPipeline();
             VkShaderModule createShaderModule(const std::vector<char>& p_code);
+            static std::vector<char> readFile(const std::string& p_filename);
         void createCommandPool();
         void createDepthResources();
+            void createImage(u32 p_width, u32 p_height, VkFormat p_format, VkImageTiling p_tiling, VkImageUsageFlags p_usage, VkMemoryPropertyFlags p_properties, VkImage& p_image, VkDeviceMemory& p_imageMemory);
+       
+        // src/init/swap_chain.cpp
+        void createFramebuffers();
+
+        // src/init/image.cpp
+        void createTextureImage();
+            void transitionImageLayout(VkImage p_image, VkFormat p_format, VkImageLayout p_oldLayout, VkImageLayout p_newLayout);
+        void createTextureImageView();
+        void createTextureSampler();
+
+        // src/init/buffers.cpp
+        void createVertexBuffer();
+        void createIndexBuffer();
+        void createUniformBuffers();
+            void createBuffer(VkDeviceSize p_size, VkBufferUsageFlags p_usage, VkMemoryPropertyFlags p_properties, VkBuffer& p_buffer, VkDeviceMemory& p_bufferMemory);
+            void copyBuffer(VkBuffer p_srcBuffer, VkBuffer p_dstBuffer, VkDeviceSize p_size);
+            void copyBufferToImage(VkBuffer p_buffer, VkImage p_image, u32 p_width, u32 p_height);
+            VkCommandBuffer beginSingleTimeCommands();
+            void endSingleTimeCommands(VkCommandBuffer p_commandBuffer);
+
+        // src/init/descriptor.cpp
+        void createDescriptorPool();
+        void createDescriptorSets();
+
+        // src/init/buffers.cpp
+        void createCommandBuffers();
+        void createSyncObjects();
+
 
 };
 }

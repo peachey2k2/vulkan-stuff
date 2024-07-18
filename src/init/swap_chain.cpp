@@ -9,11 +9,9 @@ void Engine::createSwapChain() {
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
     VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-    uint32_t imageCount;
+    u32 imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
         imageCount = swapChainSupport.capabilities.maxImageCount;
-    } else {
-        imageCount = swapChainSupport.capabilities.minImageCount + 1;
     }
 
     VkSwapchainCreateInfoKHR createInfo {
@@ -33,7 +31,7 @@ void Engine::createSwapChain() {
     };
 
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-    uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+    u32 queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
     if (indices.graphicsFamily != indices.presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -43,9 +41,8 @@ void Engine::createSwapChain() {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
-    if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create swap chain!");
-    }
+    VkResult result = vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create swap chain!");
 
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
     swapChainImages.resize(imageCount);
@@ -69,21 +66,44 @@ VkPresentModeKHR Engine::chooseSwapPresentMode(const std::vector<VkPresentModeKH
 }
 
 VkExtent2D Engine::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& p_capabilities) {
-    if (p_capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+    if (p_capabilities.currentExtent.width != std::numeric_limits<u32>::max()) {
         return p_capabilities.currentExtent;
     } else {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
         VkExtent2D actualExtent = {
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
+            scast<u32>(width),
+            scast<u32>(height)
         };
 
         actualExtent.width = std::clamp(actualExtent.width, p_capabilities.minImageExtent.width, p_capabilities.maxImageExtent.width);
         actualExtent.height = std::clamp(actualExtent.height, p_capabilities.minImageExtent.height, p_capabilities.maxImageExtent.height);
 
         return actualExtent;
+    }
+}
+
+void Engine::createFramebuffers() {
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+    for (std::size_t i = 0; i < swapChainImageViews.size(); i++) {
+        std::array<VkImageView, 2> attachments = {
+            swapChainImageViews[i],
+            depthImageView
+        };
+
+        VkFramebufferCreateInfo framebufferInfo {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = renderPass,
+            .attachmentCount = scast<u32>(attachments.size()),
+            .pAttachments = attachments.data(),
+            .width = swapChainExtent.width,
+            .height = swapChainExtent.height,
+            .layers = 1,
+        };
+
+        VkResult result = vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]);
+        ASSERT_FATAL(result == VK_SUCCESS, "failed to create framebuffer!");
     }
 }
 

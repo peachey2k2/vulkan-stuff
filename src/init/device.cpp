@@ -9,7 +9,7 @@ const std::vector<const char*> deviceExtensions = {
 void Engine::pickPhysicalDevice() {
     u32 deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-    if (deviceCount == 0) throw std::runtime_error("failed to find GPUs with Vulkan support!");
+    ASSERT_FATAL(deviceCount > 0, "failed to find GPUs with Vulkan support!");
     
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -24,9 +24,7 @@ void Engine::pickPhysicalDevice() {
         }
     }
 
-    if (physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("failed to find a suitable GPU!");
-    }
+    ASSERT_FATAL(physicalDevice != VK_NULL_HANDLE, "failed to find a suitable GPU!");
 }
 
 u32 Engine::rateDeviceSuitability(VkPhysicalDevice p_device) {
@@ -152,10 +150,22 @@ void Engine::createLogicalDevice() {
         createInfo.enabledLayerCount = 0;
     }
 
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create logical device!");
-    }
+    VkResult result = vkCreateDevice(physicalDevice, &createInfo, nullptr, &device);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create logical device!");
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
+}
+
+u32 Engine::findMemoryType(u32 p_typeFilter, VkMemoryPropertyFlags p_properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+    
+    for (u32 i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((p_typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & p_properties) == p_properties) {
+            return i;
+        }
+    }
+
+    throw engine_fatal_exception("failed to find suitable memory type!");
 }
