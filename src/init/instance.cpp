@@ -4,7 +4,7 @@ using namespace wmac;
 
 void Engine::createInstance() {
     if (enableValidationLayers && !checkValidationLayerSupport()) {
-        throw std::runtime_error("validation layers requested, but not available!");
+        throw engine_fatal_exception("validation layers requested, but not available!");
     }
 
     VkApplicationInfo appInfo {
@@ -35,9 +35,8 @@ void Engine::createInstance() {
         createInfo.enabledLayerCount = 0;
     }
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create instance!");
-    }
+    VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create instance!");
 }
 
 bool Engine::checkValidationLayerSupport() {
@@ -63,7 +62,7 @@ bool Engine::checkValidationLayerSupport() {
     return true;
 }
 
-std::vector<const char*> getRequiredExtensions() {
+std::vector<const char*> Engine::getRequiredExtensions() {
     u32 glfwExtensionCount = 0;
     const char** glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -77,7 +76,7 @@ std::vector<const char*> getRequiredExtensions() {
     return extensions;
 }
 
-void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& p_createInfo) {
+void Engine::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& p_createInfo) {
     p_createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
         .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
@@ -86,7 +85,7 @@ void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& p_crea
         .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-        .pfnUserCallback = debugCallback,
+        .pfnUserCallback = Engine::debugCallback,
     };
 }
 
@@ -95,46 +94,11 @@ void Engine::setupDebugMessenger() {
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo;
     populateDebugMessengerCreateInfo(createInfo);
-    if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-        throw std::runtime_error("failed to set up debug messenger!");
-    }
-}
-
-// debug callback for vulkan validation layers
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT p_messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT p_messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* p_pCallbackData,
-    void* p_pUserData
-) {
-    static u32 errorCount = 0;
-
-    std::cerr << (p_messageType & 0b1 ? "\e[36m[INFO] " : "\e[31m[ERROR("+std::to_string(++errorCount)+")] ") << "\e[0m" << p_pCallbackData->pMessage << '\n';
-
-    ASSERT_FATAL(errorCount < 50, "too many errors!");
-
-    return VK_FALSE;
+    VkResult result = CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to set up debug messenger!");
 }
 
 void Engine::createSurface() {
-    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create window surface!");
-    }
-}
-
-// these functions have to be bound manually
-VkResult CreateDebugUtilsMessengerEXT(VkInstance p_instance, const VkDebugUtilsMessengerCreateInfoEXT* p_pCreateInfo, const VkAllocationCallbacks* p_pAllocator, VkDebugUtilsMessengerEXT* p_pDebugMessenger) {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(p_instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        return func(p_instance, p_pCreateInfo, p_pAllocator, p_pDebugMessenger);
-    } else {
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-}
-
-void DestroyDebugUtilsMessengerEXT(VkInstance p_instance, VkDebugUtilsMessengerEXT p_debugMessenger, const VkAllocationCallbacks* p_pAllocator) {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(p_instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(p_instance, p_debugMessenger, p_pAllocator);
-    }
+    VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to create window surface!");
 }
