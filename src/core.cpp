@@ -20,7 +20,10 @@ namespace wmac {
 
         // initialize the glfw window
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
         glfwSetFramebufferSizeCallback(window, [](GLFWwindow* p_window, int p_width, int p_height) {
+#pragma GCC diagnostic pop
             Engine::getSingleton()->framebufferResized = true;
         });
 
@@ -76,9 +79,9 @@ namespace wmac {
         if (imageIndex >= MAX_FRAMES_IN_FLIGHT) {
             // for some fucking reason, imageIndex is sometimes equal to MAX_FRAMES_IN_FLIGHT
             // idk how nor why, i couldn't even find anything about that on internet.
-            // it doesn't majorly fuck up much except the
-            // TODO: fix, somehow...
-            std::cout << "dw about the following error, it's fine. it's always fine." << '\n';
+            // it doesn't majorly ruin things unless i set MAX_FRAMES_IN_FLIGHT higher.
+            // also unnsecessary console spam. TODO: fix, somehow...
+            std::cout << "--dw about the following error, it's fine. it's always fine--" << '\n';
             return;
         }
 
@@ -86,7 +89,7 @@ namespace wmac {
             recreateSwapChain();
             return;
         } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-            throw std::runtime_error("failed to acquire swap chain image!");
+            throw engine_fatal_exception("failed to acquire swap chain image!");
         }
 
         vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -95,6 +98,8 @@ namespace wmac {
         recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
         updateUniformBuffer(imageIndex);
+        updateVertexBuffer(vertices);
+        updateIndexBuffer(indices);
 
         VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
         VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -111,9 +116,8 @@ namespace wmac {
             .pSignalSemaphores = signalSemaphores,
         };
 
-        if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to submit draw command buffer!");
-        }
+        result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]);
+        ASSERT_FATAL(result == VK_SUCCESS, "failed to submit draw command buffer!");
 
         VkPresentInfoKHR presentInfo {
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -130,7 +134,7 @@ namespace wmac {
             framebufferResized = false;
             recreateSwapChain();
         } else if (result != VK_SUCCESS) {
-            throw std::runtime_error("failed to present swap chain image!");
+            throw engine_fatal_exception("failed to present swap chain image!");
         }
 
         ++currentFrame %= MAX_FRAMES_IN_FLIGHT;
@@ -161,11 +165,17 @@ namespace wmac {
 
         vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
-        vkDestroyBuffer(device, vertexBuffer, nullptr);
-        vkFreeMemory(device, vertexBufferMemory, nullptr);
+        vkUnmapMemory(device, vertexBuffer.stagingMemory);
+        vkDestroyBuffer(device, vertexBuffer.opaque, nullptr);
+        vkDestroyBuffer(device, vertexBuffer.stagingOpaque, nullptr);
+        vkFreeMemory(device, vertexBuffer.memory, nullptr);
+        vkFreeMemory(device, vertexBuffer.stagingMemory, nullptr);
 
-        vkDestroyBuffer(device, indexBuffer, nullptr);
-        vkFreeMemory(device, indexBufferMemory, nullptr);
+        vkUnmapMemory(device, indexBuffer.stagingMemory);
+        vkDestroyBuffer(device, indexBuffer.opaque, nullptr);
+        vkDestroyBuffer(device, indexBuffer.stagingOpaque, nullptr);
+        vkFreeMemory(device, indexBuffer.memory, nullptr);
+        vkFreeMemory(device, indexBuffer.stagingMemory, nullptr);
         
         FREE_ARRAY(imageAvailableSemaphores, vkDestroySemaphore(device, __e, nullptr));
         FREE_ARRAY(renderFinishedSemaphores, vkDestroySemaphore(device, __e, nullptr));
@@ -217,6 +227,8 @@ namespace wmac {
         }
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
     // debug callback for vulkan validation layers
     VKAPI_ATTR VkBool32 VKAPI_CALL Engine::debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT p_messageSeverity,
@@ -224,9 +236,10 @@ namespace wmac {
         const VkDebugUtilsMessengerCallbackDataEXT* p_pCallbackData,
         void* p_pUserData
     ) {
+#pragma GCC diagnostic pop
         static u32 errorCount = 0;
 
-        std::cerr << (p_messageType & 0b1 ? "\e[36m[INFO] " : "\e[31m[ERROR("+std::to_string(++errorCount)+")] ") << "\e[0m" << p_pCallbackData->pMessage << '\n';
+        std::cerr << (p_messageType & 0b1 ? "\x1b[36m[INFO] " : "\x1b[31m[ERROR("+std::to_string(++errorCount)+")] ") << "\x1b[0m" << p_pCallbackData->pMessage << '\n';
 
         ASSERT_FATAL(errorCount < 50, "too many errors!");
 

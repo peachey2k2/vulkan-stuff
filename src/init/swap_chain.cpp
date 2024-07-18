@@ -61,8 +61,12 @@ VkSurfaceFormatKHR Engine::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFo
 }
 
 VkPresentModeKHR Engine::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& p_availablePresentModes) {
+    for (const auto& availablePresentMode : p_availablePresentModes) {
+        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return availablePresentMode;
+        }
+    }
     return VK_PRESENT_MODE_FIFO_KHR;
-    // VK_PRESENT_MODE_MAILBOX_KHR is better, use it in a real game
 }
 
 VkExtent2D Engine::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& p_capabilities) {

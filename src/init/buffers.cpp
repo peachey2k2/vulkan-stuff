@@ -3,47 +3,39 @@
 using namespace wmac;
 
 void Engine::createVertexBuffer() {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    vertexBuffer.size = sizeof(vertices[0]) * MAX_VERTICES;
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    createBuffer(vertexBuffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, vertexBuffer.stagingOpaque, vertexBuffer.stagingMemory);
 
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(device, vertexBuffer.stagingMemory, 0, vertexBuffer.size, 0, &vertexBuffer.mapped);
+    memcpy(vertexBuffer.mapped, vertices.data(), (std::size_t) vertexBuffer.size);
 
-        memcpy(data, vertices.data(), (std::size_t) bufferSize);
+    createBuffer(vertexBuffer.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer.opaque, vertexBuffer.memory);
 
-    vkUnmapMemory(device, stagingBufferMemory);
+    copyBuffer(vertexBuffer.stagingOpaque, vertexBuffer.opaque, vertexBuffer.size);
+}
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
-
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
+void Engine::updateVertexBuffer(const std::vector<Vertex>& p_newVertices) {
+    memcpy(vertexBuffer.mapped, p_newVertices.data(), (std::size_t) vertexBuffer.size);
+    copyBuffer(vertexBuffer.stagingOpaque, vertexBuffer.opaque, vertexBuffer.size);
 }
 
 void Engine::createIndexBuffer() {
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+    indexBuffer.size = sizeof(indices[0]) * MAX_INDICES;
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    createBuffer(indexBuffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, indexBuffer.stagingOpaque, indexBuffer.stagingMemory);
 
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    
-        memcpy(data, indices.data(), (std::size_t) bufferSize);
+    vkMapMemory(device, indexBuffer.stagingMemory, 0, indexBuffer.size, 0, &indexBuffer.mapped);
+    memcpy(indexBuffer.mapped, indices.data(), (std::size_t) vertexBuffer.size);
 
-    vkUnmapMemory(device, stagingBufferMemory);
+    createBuffer(vertexBuffer.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer.opaque, indexBuffer.memory);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+    copyBuffer(indexBuffer.stagingOpaque, indexBuffer.opaque, indexBuffer.size);
+}
 
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
+void Engine::updateIndexBuffer(const std::vector<u32>& p_newIndices) {
+    memcpy(indexBuffer.mapped, p_newIndices.data(), (std::size_t) indexBuffer.size);
+    copyBuffer(indexBuffer.stagingOpaque, indexBuffer.opaque, indexBuffer.size);
 }
 
 void Engine::createUniformBuffers() {
@@ -102,12 +94,13 @@ void Engine::createBuffer(VkDeviceSize p_size, VkBufferUsageFlags p_usage, VkMem
     vkBindBufferMemory(device, p_buffer, p_bufferMemory, 0);
 }
 
-void Engine::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+void Engine::copyBuffer(VkBuffer p_srcBuffer, VkBuffer p_dstBuffer, VkDeviceSize p_size) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
-    VkBufferCopy copyRegion{};
-    copyRegion.size = size;
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+    VkBufferCopy copyRegion{
+        .size = p_size,
+    };
+    vkCmdCopyBuffer(commandBuffer, p_srcBuffer, p_dstBuffer, 1, &copyRegion);
 
     endSingleTimeCommands(commandBuffer);
 }
@@ -225,12 +218,11 @@ void Engine::recordCommandBuffer(VkCommandBuffer p_commandBuffer, uint32_t p_ima
         .extent = swapChainExtent,
     };
 
-    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkBuffer vertexBuffers[] = {vertexBuffer.opaque};
     VkDeviceSize offsets[] = {0};
 
-    if (vkBeginCommandBuffer(p_commandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
+    VkResult result = vkBeginCommandBuffer(p_commandBuffer, &beginInfo);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to begin recording command buffer!");
 
         vkCmdBeginRenderPass(p_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -240,7 +232,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer p_commandBuffer, uint32_t p_ima
             vkCmdSetScissor(p_commandBuffer, 0, 1, &scissor);
 
             vkCmdBindVertexBuffers(p_commandBuffer, 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(p_commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(p_commandBuffer, indexBuffer.opaque, 0, VK_INDEX_TYPE_UINT32);
 
             vkCmdBindDescriptorSets(p_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
@@ -249,9 +241,8 @@ void Engine::recordCommandBuffer(VkCommandBuffer p_commandBuffer, uint32_t p_ima
 
         vkCmdEndRenderPass(p_commandBuffer);
 
-    if (vkEndCommandBuffer(p_commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to record command buffer!");
-    }
+    result = vkEndCommandBuffer(p_commandBuffer);
+    ASSERT_FATAL(result == VK_SUCCESS, "failed to record command buffer!");
 }
 
 void Engine::createSyncObjects() {

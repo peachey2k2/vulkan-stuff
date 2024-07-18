@@ -168,19 +168,19 @@ void Engine::createGraphicsPipeline() {
         .primitiveRestartEnable = VK_FALSE,
     };
 
-    VkViewport viewport {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = (float) swapChainExtent.width,
-        .height = (float) swapChainExtent.height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
+    // VkViewport viewport {
+    //     .x = 0.0f,
+    //     .y = 0.0f,
+    //     .width = (float) swapChainExtent.width,
+    //     .height = (float) swapChainExtent.height,
+    //     .minDepth = 0.0f,
+    //     .maxDepth = 1.0f,
+    // };
 
-    VkRect2D scissor {
-        .offset = {0, 0},
-        .extent = swapChainExtent,
-    };
+    // VkRect2D scissor {
+    //     .offset = {0, 0},
+    //     .extent = swapChainExtent,
+    // };
 
     // VkPipelineViewportStateCreateInfo viewportState {
     //     .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
