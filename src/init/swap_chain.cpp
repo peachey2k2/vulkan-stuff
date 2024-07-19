@@ -90,7 +90,7 @@ VkExtent2D Engine::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& p_capabiliti
 
 void Engine::createFramebuffers() {
     swapChainFramebuffers.resize(swapChainImageViews.size());
-    for (std::size_t i = 0; i < swapChainImageViews.size(); i++) {
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
         std::array<VkImageView, 2> attachments = {
             swapChainImageViews[i],
             depthImageView

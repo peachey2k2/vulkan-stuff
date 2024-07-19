@@ -100,7 +100,7 @@ void Engine::createTextureImage() {
 
     void* data;
     vkMapMemory(device, imageStagingBufferMemory, 0, imageSize, 0, &data);
-        memcpy(data, pixels, scast<std::size_t>(imageSize));
+        memcpy(data, pixels, scast<size_t>(imageSize));
     vkUnmapMemory(device, imageStagingBufferMemory);
 
     stbi_image_free(pixels);

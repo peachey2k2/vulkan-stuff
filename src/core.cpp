@@ -1,10 +1,62 @@
 #define STB_IMAGE_IMPLEMENTATION // include stb_image implementation, rather than just the header
 #include "core.hpp"
 
-const u32 WIDTH = 800;
-const u32 HEIGHT = 600;
 
 namespace wmac {
+    const std::vector<Vertex> vertices = {
+        // top
+        {{-0.5f, -0.5f, 0.5f}, COLOR_WHITE, {1.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.5f}, COLOR_WHITE, {0.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.5f}, COLOR_WHITE, {0.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.5f}, COLOR_WHITE, {1.0f, 1.0f}},
+
+        // bottom
+        {{-0.5f, -0.5f, -0.5f}, COLOR_WHITE, {1.0f, 0.0f}},
+        {{0.5f, -0.5f, -0.5f}, COLOR_WHITE, {0.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, COLOR_WHITE, {0.0f, 1.0f}},
+        {{-0.5f, 0.5f, -0.5f}, COLOR_WHITE, {1.0f, 1.0f}},
+
+        // left
+        {{-0.5f, -0.5f, -0.5f}, COLOR_WHITE, {1.0f, 1.0f}},
+        {{-0.5f, -0.5f, 0.5f}, COLOR_WHITE, {1.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.5f}, COLOR_WHITE, {0.0f, 0.0f}},
+        {{-0.5f, 0.5f, -0.5f}, COLOR_WHITE, {0.0f, 1.0f}},
+
+        // right
+        {{0.5f, -0.5f, -0.5f}, COLOR_WHITE, {0.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.5f}, COLOR_WHITE, {0.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.5f}, COLOR_WHITE, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, COLOR_WHITE, {1.0f, 1.0f}},
+
+        // front
+        {{-0.5f, -0.5f, -0.5f}, COLOR_WHITE, {0.0f, 1.0f}},
+        {{0.5f, -0.5f, -0.5f}, COLOR_WHITE, {1.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.5f}, COLOR_WHITE, {1.0f, 0.0f}},
+        {{-0.5f, -0.5f, 0.5f}, COLOR_WHITE, {0.0f, 0.0f}},
+
+        // back
+        {{-0.5f, 0.5f, -0.5f}, COLOR_WHITE, {0.0f, 1.0f}},
+        {{0.5f, 0.5f, -0.5f}, COLOR_WHITE, {1.0f, 1.0f}},
+        {{0.5f, 0.5f, 0.5f}, COLOR_WHITE, {1.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.5f}, COLOR_WHITE, {0.0f, 0.0f}},
+    };
+
+    const std::vector<u32> indices = {
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4,
+        8, 9, 10, 10, 11, 8,
+        12, 14, 13, 14, 12, 15,
+        16, 17, 18, 18, 19, 16,
+        20, 22, 21, 22, 20, 23,
+    };
+
+    const u32 WIDTH = 800;
+    const u32 HEIGHT = 600;
+
+    const u32 MAX_FRAMES_IN_FLIGHT = 2;
+    const u32 MAX_VERTICES = 10000;
+    const u32 MAX_INDICES = 10000;
+
     Engine* Engine::singleton = nullptr;
 
     void Engine::run() {
@@ -73,7 +125,7 @@ namespace wmac {
     void Engine::drawFrame() {
         vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
-        uint32_t imageIndex;
+        u32 imageIndex;
         VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
         if (imageIndex >= MAX_FRAMES_IN_FLIGHT) {
@@ -138,6 +190,44 @@ namespace wmac {
         }
 
         ++currentFrame %= MAX_FRAMES_IN_FLIGHT;
+    }
+
+    u32 curSecond = 0;
+    u32 fps = 0;
+
+    void Engine::updateUniformBuffer(u32 p_currentImage) {
+        static auto startTime = std::chrono::high_resolution_clock::now();
+
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+        fps++;
+        if (floor(time) > curSecond) {
+            std::cout << "FPS: " << fps << '\n';
+            curSecond = floor(time);
+            fps = 0;
+        }
+        mat4 model = glm::rotate(
+            mat4(1.0f),
+            time * glm::radians(90.0f),
+            vec3(0.0f, 0.0f, 1.0f)
+        );
+        mat4 view = glm::lookAt(
+            vec3(2.0f, 2.0f, 2.0f),
+            vec3(0.0f, 0.0f, 0.0f),
+            vec3(0.0f, 0.0f, 1.0f)
+        );
+        mat4 proj = glm::perspective(
+            glm::radians(45.0f),
+            swapChainExtent.width / (float) swapChainExtent.height,
+            0.1f,
+            10.0f
+        );
+        proj[1][1] *= -1;
+
+        mat4 mvp = proj * view * model;
+        
+        memcpy(uniformBuffersMapped[p_currentImage], &mvp, sizeof(mat4));
     }
 
     #define FREE_ARRAY(m_array, m_func) \
