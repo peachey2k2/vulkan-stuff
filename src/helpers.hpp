@@ -52,3 +52,24 @@ typedef float f32;
 typedef double f64;
 #endif
 
+#ifndef size_t
+typedef std::size_t size_t;
+#endif
+
+typedef glm::mat2 mat2;
+typedef glm::mat3 mat3;
+typedef glm::mat4 mat4;
+
+typedef glm::vec2 vec2;
+typedef glm::vec3 vec3;
+typedef glm::vec4 vec4;
+
+//colors
+const vec3 COLOR_RED = vec3(1.0, 0.0, 0.0);
+const vec3 COLOR_GREEN = vec3(0.0, 1.0, 0.0);
+const vec3 COLOR_BLUE = vec3(0.0, 0.0, 1.0);
+const vec3 COLOR_YELLOW = vec3(1.0, 1.0, 0.0);
+const vec3 COLOR_MAGENTA = vec3(1.0, 0.0, 1.0);
+const vec3 COLOR_CYAN = vec3(0.0, 1.0, 1.0);
+const vec3 COLOR_WHITE = vec3(1.0, 1.0, 1.0);
+const vec3 COLOR_BLACK = vec3(0.0, 0.0, 0.0);

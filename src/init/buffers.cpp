@@ -8,7 +8,7 @@ void Engine::createVertexBuffer() {
     createBuffer(vertexBuffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, vertexBuffer.stagingOpaque, vertexBuffer.stagingMemory);
 
     vkMapMemory(device, vertexBuffer.stagingMemory, 0, vertexBuffer.size, 0, &vertexBuffer.mapped);
-    memcpy(vertexBuffer.mapped, vertices.data(), (std::size_t) vertexBuffer.size);
+    memcpy(vertexBuffer.mapped, vertices.data(), (size_t) vertexBuffer.size);
 
     createBuffer(vertexBuffer.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer.opaque, vertexBuffer.memory);
 
@@ -16,7 +16,7 @@ void Engine::createVertexBuffer() {
 }
 
 void Engine::updateVertexBuffer(const std::vector<Vertex>& p_newVertices) {
-    memcpy(vertexBuffer.mapped, p_newVertices.data(), (std::size_t) vertexBuffer.size);
+    memcpy(vertexBuffer.mapped, p_newVertices.data(), (size_t) vertexBuffer.size);
     copyBuffer(vertexBuffer.stagingOpaque, vertexBuffer.opaque, vertexBuffer.size);
 }
 
@@ -26,7 +26,7 @@ void Engine::createIndexBuffer() {
     createBuffer(indexBuffer.size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, indexBuffer.stagingOpaque, indexBuffer.stagingMemory);
 
     vkMapMemory(device, indexBuffer.stagingMemory, 0, indexBuffer.size, 0, &indexBuffer.mapped);
-    memcpy(indexBuffer.mapped, indices.data(), (std::size_t) vertexBuffer.size);
+    memcpy(indexBuffer.mapped, indices.data(), (size_t) vertexBuffer.size);
 
     createBuffer(vertexBuffer.size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer.opaque, indexBuffer.memory);
 
@@ -34,37 +34,22 @@ void Engine::createIndexBuffer() {
 }
 
 void Engine::updateIndexBuffer(const std::vector<u32>& p_newIndices) {
-    memcpy(indexBuffer.mapped, p_newIndices.data(), (std::size_t) indexBuffer.size);
+    memcpy(indexBuffer.mapped, p_newIndices.data(), (size_t) indexBuffer.size);
     copyBuffer(indexBuffer.stagingOpaque, indexBuffer.opaque, indexBuffer.size);
 }
 
 void Engine::createUniformBuffers() {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize bufferSize = sizeof(mat4);
 
     uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
     uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
 
-    for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
 
         vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
     }
-}
-
-void Engine::updateUniformBuffer(uint32_t p_currentImage) {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-    UniformBufferObject ubo {
-        .model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-        .view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-        .proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f),
-    };
-    ubo.proj[1][1] *= -1;
-    memcpy(uniformBuffersMapped[p_currentImage], &ubo, sizeof(ubo));
 }
 
 void Engine::createBuffer(VkDeviceSize p_size, VkBufferUsageFlags p_usage, VkMemoryPropertyFlags p_properties, VkBuffer& p_buffer, VkDeviceMemory& p_bufferMemory) {
@@ -182,7 +167,7 @@ void Engine::createCommandBuffers() {
     ASSERT_FATAL(result == VK_SUCCESS, "failed to allocate command buffers!");
 }
 
-void Engine::recordCommandBuffer(VkCommandBuffer p_commandBuffer, uint32_t p_imageIndex) {
+void Engine::recordCommandBuffer(VkCommandBuffer p_commandBuffer, u32 p_imageIndex) {
     VkCommandBufferBeginInfo beginInfo {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0, // optional, useless for us
@@ -202,7 +187,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer p_commandBuffer, uint32_t p_ima
             .offset = {0, 0},
             .extent = swapChainExtent,
         },
-        .clearValueCount = static_cast<uint32_t>(clearValues.size()),
+        .clearValueCount = scast<u32>(clearValues.size()),
         .pClearValues = clearValues.data(),
     };
 
@@ -236,8 +221,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer p_commandBuffer, uint32_t p_ima
 
             vkCmdBindDescriptorSets(p_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
-            // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0); // variable vertices, 1 instance, 0 offset
-            vkCmdDrawIndexed(p_commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+            vkCmdDrawIndexed(p_commandBuffer, scast<u32>(indices.size()), 1, 0, 0, 0);
 
         vkCmdEndRenderPass(p_commandBuffer);
 
@@ -259,7 +243,7 @@ void Engine::createSyncObjects() {
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
 
-    for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         bool result =
             vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) == VK_SUCCESS &&
             vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) == VK_SUCCESS &&

@@ -40,11 +40,11 @@ void Engine::createDescriptorSets() {
     VkResult result = vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data());
     ASSERT_FATAL(result == VK_SUCCESS, "failed to allocate descriptor sets!");
 
-    for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VkDescriptorBufferInfo bufferInfo {
             .buffer = uniformBuffers[i],
             .offset = 0,
-            .range = sizeof(UniformBufferObject),
+            .range = sizeof(mat4),
         };
 
         VkDescriptorImageInfo imageInfo {
